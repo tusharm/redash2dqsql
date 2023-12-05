@@ -4,5 +4,5 @@ Tool to migrate Redash dashboards to Databricks SQL
 
 ### Issues
 
-1. `sqlglot` doesn't handle Redash query parameters. Need to handle it ourselves
+1. Query parameters depend on other queries
 2. 

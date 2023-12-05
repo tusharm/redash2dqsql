@@ -3,8 +3,8 @@ import sys
 
 from redash_toolbelt import Redash
 
-from redash import Client, get_queries
-from dbsql import convert_from
+from extract import Client, get_queries
+from convert import convert_query
 
 
 def run(url, api_key):
@@ -14,7 +14,7 @@ def run(url, api_key):
     job_estimator = list(dashboards)[0]
     queries = get_queries(job_estimator)
 
-    print(convert_from(queries[0]))
+    print(convert_query(queries[0]))
 
 
 if __name__ == '__main__':

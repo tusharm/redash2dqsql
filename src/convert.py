@@ -1,9 +1,9 @@
 from sqlglot import transpile, parse_one, exp
 
-from redash import Query
+from extract import Query
 
 
-def convert_from(query: Query, dialect='presto'):
+def convert_query(query: Query, dialect='presto'):
     transpiled = transpile(query.query_string, read=dialect, write="databricks", pretty=True)
 
     # we will only have one query
@@ -16,14 +16,14 @@ def convert_from(query: Query, dialect='presto'):
     return result
 
 
-def fix_query_params(query: str, params):
+def fix_query_params(query: str, params) -> str:
     result = query
     for param in params:
         result = result.replace(f"STRUCT(STRUCT({param}))", f"{{{{{param}}}}}")
     return result
 
 
-def fix_schema_names(query: str, dialect='databricks'):
+def fix_schema_names(query: str, dialect='databricks') -> str:
     # Parse the SQL statement
     expression_tree = parse_one(query, read=dialect)
 
