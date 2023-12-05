@@ -3,9 +3,9 @@ from dataclasses import dataclass
 from redash_toolbelt import Redash
 
 
-class Client:
-    def __init__(self, redash: Redash):
-        self.redash = redash
+class RedashClient:
+    def __init__(self, url, api_key):
+        self.redash = Redash(url, api_key)
 
     def get_dashboards(self, tags=None):
         dashboards = self.redash.dashboards(tags=tags)

@@ -1,16 +1,13 @@
 import os
 import sys
 
-from redash_toolbelt import Redash
-
-from extract import Client, get_queries
 from convert import convert_query
+from extract import RedashClient, get_queries
+from upload import DBXClient
 
 
-def run(url, api_key):
-    client = Client(Redash(url, api_key))
-
-    dashboards = client.get_dashboards(tags=['Job estimator'])
+def migrate(redash: RedashClient, dbx: DBXClient):
+    dashboards = redash.get_dashboards(tags=['Job estimator'])
     job_estimator = list(dashboards)[0]
     queries = get_queries(job_estimator)
 
@@ -18,12 +15,24 @@ def run(url, api_key):
 
 
 if __name__ == '__main__':
-    api_key = os.getenv("REDASH_API_KEY")
-    if not api_key:
+    redash_key = os.getenv("REDASH_API_KEY")
+    if not redash_key:
         sys.exit("Missing env var 'REDASH_API_KEY'")
 
-    url = os.getenv("REDASH_URL")
-    if not url:
+    redash_url = os.getenv("REDASH_URL")
+    if not redash_url:
         sys.exit("Missing env var 'REDASH_URL'")
 
-    run(url, api_key)
+    redash = RedashClient(redash_url, redash_key)
+
+    dbx_host = os.getenv("DATABRICKS_HOST")
+    if not dbx_host:
+        sys.exit("Missing env var 'DATABRICKS_HOST'")
+
+    dbx_token = os.getenv("DATABRICKS_TOKEN")
+    if not dbx_token:
+        sys.exit("Missing env var 'DATABRICKS_TOKEN'")
+
+    dbx = DBXClient(dbx_host, dbx_token)
+
+    migrate(redash, dbx)
