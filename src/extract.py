@@ -6,6 +6,7 @@ from redash_toolbelt import Redash
 @dataclass
 class Query:
     name: str
+    id: int
     query_string: str
     options: dict
     tags: []
@@ -15,6 +16,11 @@ class Query:
     def params(self):
         parameters = self.options.get('parameters', [])
         return [p['name'] for p in parameters]
+
+    def update_query_based_parameter(self, id: int, new_id: int):
+        for param in self.options.get('parameters', []):
+            if param.get('queryId') and param['queryId'] == id:
+                param['queryId'] = new_id
 
 
 class RedashClient:
@@ -42,6 +48,7 @@ class RedashClient:
 
     def _build_query_model(self, redash_query) -> Query:
         query = Query(
+            id=redash_query['id'],
             name=redash_query['name'],
             query_string=redash_query['query'],
             options=redash_query['options'],
