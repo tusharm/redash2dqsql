@@ -1,17 +1,26 @@
 import os
 import sys
+from pprint import pprint
 
 from convert import convert_query
-from extract import RedashClient, get_queries
+from extract import RedashClient, Query
 from upload import DBXClient
 
 
 def migrate(redash: RedashClient, dbx: DBXClient):
-    dashboards = redash.get_dashboards(tags=['Job estimator'])
-    job_estimator = list(dashboards)[0]
-    queries = get_queries(job_estimator)
+    # Get queries for a dashboard
+    # dashboards = redash.dashboards(tags=['Job estimator'])
+    # job_estimator = list(dashboards)[0]
+    # query = redash.queries_for(job_estimator)[0]
 
-    print(convert_query(queries[0]))
+    # Get queries by tag
+    query = redash.queries(tags=['TC'])[0]
+
+    # Convert to Databricks format
+    convert_query(query)
+    pprint(query)
+
+    # dbx.create_query(query)
 
 
 if __name__ == '__main__':
