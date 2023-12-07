@@ -2,12 +2,12 @@ import os
 import sys
 from pprint import pprint
 
-from convert import convert_query
-from extract import RedashClient, Query
-from upload import DBXClient
+from transform import transform_query
+from redash import RedashClient
+from dbsql import DBXClient
 
 
-def migrate(redash: RedashClient, dbx: DBXClient):
+def run(redash: RedashClient, dbx: DBXClient):
     # Get queries for a dashboard
     dashboards = redash.dashboards(tags=['Job estimator'])
     job_estimator = list(dashboards)[0]
@@ -17,10 +17,11 @@ def migrate(redash: RedashClient, dbx: DBXClient):
     # query = redash.queries(tags=['TC'])[0]
 
     # Convert to Databricks format
-    convert_query(query)
+    transform_query(query)
     pprint(query)
 
-    dbx.create_query(query, target_folder="/Shared/Redash")
+    dbx_id = dbx.create_query(query, target_folder="/")
+    pprint(dbx.get_query(dbx_id))
 
 
 if __name__ == '__main__':
@@ -44,4 +45,4 @@ if __name__ == '__main__':
 
     dbx = DBXClient(dbx_host, dbx_token)
 
-    migrate(redash, dbx)
+    run(redash, dbx)

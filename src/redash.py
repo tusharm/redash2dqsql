@@ -5,22 +5,17 @@ from redash_toolbelt import Redash
 
 @dataclass
 class Query:
-    name: str
     id: int
+    name: str
     query_string: str
     options: dict
     tags: []
-    depends_on = []
+    depends_on: []
 
     @property
     def params(self):
         parameters = self.options.get('parameters', [])
         return [p['name'] for p in parameters]
-
-    def update_query_based_parameter(self, id: int, new_id: int):
-        for param in self.options.get('parameters', []):
-            if param.get('queryId') and param['queryId'] == id:
-                param['queryId'] = new_id
 
 
 class RedashClient:
@@ -28,10 +23,16 @@ class RedashClient:
         self.redash = Redash(url, api_key)
 
     def dashboards(self, tags=None):
+        """
+        Returns a list of dashboards, optionally filtered by tags
+        """
         dashboards = self.redash.dashboards(tags=tags)
         return map(lambda x: self.redash.dashboard(x['id']), dashboards['results'])
 
     def queries(self, tags=None) -> [Query]:
+        """
+        Returns a list of queries, optionally filtered by tags
+        """
         query_objs = self.redash.queries(tags=tags)
         return [
             self._build_query_model(q)
@@ -39,28 +40,30 @@ class RedashClient:
         ]
 
     def queries_for(self, dashboard) -> [Query]:
-        queries = []
-        for w in dashboard['widgets']:
-            if 'visualization' in w:
-                redash_query = w['visualization']['query']
-                queries.append(self._build_query_model(redash_query))
-        return queries
+        """
+        Returns queries linked to a given dashboard, as a list of Query objects
+        """
+        return [
+            self._build_query_model(w['visualization']['query'])
+            for w in dashboard['widgets']
+            if 'visualization' in w
+        ]
 
-    def _build_query_model(self, redash_query) -> Query:
-        query = Query(
-            id=redash_query['id'],
-            name=redash_query['name'],
-            query_string=redash_query['query'],
-            options=redash_query['options'],
-            tags=redash_query['tags']
+    def _build_query_model(self, query_obj) -> Query:
+        return Query(
+            id=query_obj['id'],
+            name=query_obj['name'],
+            query_string=query_obj['query'],
+            options=query_obj['options'],
+            tags=query_obj['tags'],
+            depends_on=self._depends_on_queries(query_obj)
         )
-
-        query.depends_on = self._depends_on_queries(redash_query)
-        return query
 
     def _depends_on_queries(self, query) -> [Query]:
         """
-        Generates a list of Query objects that the given query depends on.
+        Redash queries can have parameters that are based on other queries
+        (see https://redash.io/help/user-guide/querying/query-parameters#Dropdown-Lists).
+        This method generates a list of Query objects that the given query depends on.
         """
         params = query['options'].get('parameters')
         if not params:
