@@ -2,29 +2,33 @@ import os
 import sys
 from pprint import pprint
 
-from transform import transform_query
+from transform import transform_query, fix_query_params
 from redash import RedashClient
 from dbsql import DBXClient
+from dotenv import load_dotenv
 
 
 def run(redash: RedashClient, dbx: DBXClient):
     # Get queries for a dashboard
-    dashboards = redash.dashboards(tags=['Job estimator'])
-    job_estimator = list(dashboards)[0]
-    query = redash.queries_for(job_estimator)[0]
+    dashboards = redash.dashboards(tags=['tradie_engagement'])
+    for dashboard in list(dashboards):
+        for query in redash.queries_for(dashboard):
+            # query = redash.queries_for(dashboard)[0]
 
-    # Get queries by tag
-    # query = redash.queries(tags=['TC'])[0]
+            # Get queries by tag
+            # query = redash.queries(tags=['TC'])[0]
 
-    # Convert to Databricks format
-    transform_query(query)
-    pprint(query)
+            # Convert to Databricks format
 
-    dbx_id = dbx.create_query(query, target_folder="/")
-    pprint(dbx.get_query(dbx_id))
+            print(query)
+            transform_query(query)
+
+            dbx_id = dbx.create_query(query, target_folder='/folders/3220363672964329')
+            pprint(dbx.get_query(dbx_id))
 
 
 if __name__ == '__main__':
+    load_dotenv()
     redash_key = os.getenv("REDASH_API_KEY")
     if not redash_key:
         sys.exit("Missing env var 'REDASH_API_KEY'")
