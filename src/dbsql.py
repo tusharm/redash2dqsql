@@ -148,7 +148,7 @@ class DBXClient:
         if schedule['interval']:
             quarts_expression = self._build_quartz_expression(schedule['interval'])
             return CronSchedule(
-                quartz_cron_expression="0 0 0 ? * * *",
+                quartz_cron_expression=quarts_expression,
                 timezone_id="UTC"
             )
         raise ValueError("Only interval-based schedules are supported")
