@@ -176,7 +176,7 @@ class DBXClient:
 
     def _get_path_object_id(self, path: str) -> int:
         """
-        Validates a path to ensure it starts with '/'
+        Check if a path exists, it is a directory, and return its ID
         """
         status = self.client.workspace.get_status(path)
         if not status:
