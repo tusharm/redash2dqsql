@@ -5,6 +5,7 @@ from datetime import datetime
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.jobs import CronSchedule, SqlTask, Task, SqlTaskAlert, SqlTaskSubscription
 from databricks.sdk.service.sql import QueryOptions, Parameter, ParameterType, AlertOptions
+from databricks.sdk.service.workspace import ObjectType
 
 from redash import Query, Alert
 
@@ -101,9 +102,11 @@ class DBXClient:
         :param warehouse_id: optional ID of the SQL warehouse to refresh query
         """
 
+        target_folder_path = "folders/{0}".format(self._get_path_object_id(target_folder))
+
         # First migrate the query
-        query_id = self.create_query(alert.query, target_folder)
-        result = self._create_alert_api_call(query_id, alert)
+        query_id = self.create_query(alert.query, target_folder_path)
+        result = self._create_alert_api_call(query_id, alert, target_folder_path)
         if alert.schedule and destination_id and warehouse_id:
             self._create_alert_schedule_api_call(result.id, alert.schedule, destination_id, warehouse_id)
         return result.id
@@ -172,3 +175,13 @@ class DBXClient:
             hours = f"{(interval // 60) // 60}"
         return f"{seconds} {minutes} {hours} * * ?"
 
+    def _get_path_object_id(self, path: str) -> int:
+        """
+        Validates a path to ensure it starts with '/'
+        """
+        status = self.client.workspace.get_status(path)
+        if not status:
+            raise ValueError(f"Path `{path}`doesn't exist")
+        if not status.object_type == ObjectType.DIRECTORY:
+            raise ValueError(f"Path `{path}` is not a directory")
+        return status.object_id
