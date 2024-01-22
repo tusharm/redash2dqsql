@@ -170,10 +170,9 @@ class DBXClient:
             minutes = f"{(interval // 60) % 60}"
             hours = f"*/{(interval // 60) // 60}"
         else:
-            seconds = f"{interval % 60}"
-            minutes = f"{(interval // 60) % 60}"
-            hours = f"{(interval // 60) // 60}"
-        return f"{seconds} {minutes} {hours} * * ?"
+            raise ValueError("Interval is too large")
+
+        return f"{seconds} {minutes} {hours} ? * * *"
 
     def _get_path_object_id(self, path: str) -> int:
         """
