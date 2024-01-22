@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 from datetime import datetime
 
 from databricks.sdk import WorkspaceClient
-from databricks.sdk.service.sql import QueryOptions, Parameter, ParameterType
+from databricks.sdk.service.jobs import CronSchedule, SqlTask, Task, SqlTaskAlert, SqlTaskSubscription
+from databricks.sdk.service.sql import QueryOptions, Parameter, ParameterType, AlertOptions
 
-from redash import Query
+from redash import Query, Alert
 
 
 class DBXClient:
@@ -87,3 +90,85 @@ class DBXClient:
                 if p['name'] in query.params
             ]
         ).as_dict()
+
+    def create_alert(self, alert: Alert, target_folder: str, destination_id: str | None = None, warehouse_id: str | None = None) -> str:
+        """
+        Given a Redash alert, creates a Databricks alert
+
+        :param alert: Redash alert model
+        :param target_folder: target folder to create the alert in
+        :param destination_id: optional ID of the destination if schedule is set
+        :param warehouse_id: optional ID of the SQL warehouse to refresh query
+        """
+
+        # First migrate the query
+        query_id = self.create_query(alert.query, target_folder)
+        result = self._create_alert_api_call(query_id, alert)
+        if alert.schedule and destination_id and warehouse_id:
+            self._create_alert_schedule_api_call(result.id, alert.schedule, destination_id, warehouse_id)
+        return result.id
+
+    def _create_alert_api_call(self, query_id: str, alert: Alert, parent_folder: str):
+        """
+        Creates an alert in Databricks
+        """
+        return self.client.alerts.create(
+            name=alert.name,
+            options=AlertOptions.from_dict(alert.options),
+            query_id=query_id,
+            parent=parent_folder,
+            rearm=alert.rearm,
+        )
+
+    def _create_alert_schedule_api_call(self, alert_id: str, schedule: dict, destination_id: str, warehouse_id: str):
+        """
+        Creates an alert schedule in Databricks
+        """
+        return self.client.jobs.create(
+            name=f"Alert {alert_id} schedule",
+            schedule=self._create_cron_schedule(schedule),
+            tasks=[
+                Task(
+                    task_key="alert",
+                    sql_task=SqlTask(alert=SqlTaskAlert(alert_id=alert_id, subscriptions=[
+                        SqlTaskSubscription(destination_id=destination_id)
+                    ]), warehouse_id=warehouse_id),
+                )
+            ],
+
+        )
+
+    def _create_cron_schedule(self, schedule: dict) -> CronSchedule:
+        """
+        Creates a cron schedule from Redash schedule
+        """
+        if schedule['interval']:
+            quarts_expression = self._build_quartz_expression(schedule['interval'])
+            return CronSchedule(
+                quartz_cron_expression="0 0 0 ? * * *",
+                timezone_id="UTC"
+            )
+        raise ValueError("Only interval-based schedules are supported")
+
+    def _build_quartz_expression(self, interval: int) -> str:
+        """
+        Builds a quartz expression from an interval
+        """
+        if interval < 60:
+            seconds = f"*/{interval}"
+            minutes = "*"
+            hours = "*"
+        elif interval < 3600:
+            seconds = f"{interval % 60}"
+            minutes = f"*/{interval // 60}"
+            hours = '*'
+        elif interval < 86400:
+            seconds = f"{interval % 60}"
+            minutes = f"{(interval // 60) % 60}"
+            hours = f"*/{(interval // 60) // 60}"
+        else:
+            seconds = f"{interval % 60}"
+            minutes = f"{(interval // 60) % 60}"
+            hours = f"{(interval // 60) // 60}"
+        return f"{seconds} {minutes} {hours} * * ?"
+
