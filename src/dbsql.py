@@ -102,7 +102,7 @@ class DBXClient:
         :param warehouse_id: optional ID of the SQL warehouse to refresh query
         """
 
-        target_folder_path = "folders/{0}".format(self.get_path_object_id(target_folder))
+        target_folder_path = f"folders/{self.get_path_object_id(target_folder)}"
 
         # First migrate the query
         query_id = self.create_query(alert.query, target_folder_path)
