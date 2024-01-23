@@ -102,13 +102,13 @@ class DBXClient:
         :param warehouse_id: optional ID of the SQL warehouse to refresh query
         """
 
-        target_folder_path = "folders/{0}".format(self._get_path_object_id(target_folder))
+        target_folder_path = "folders/{0}".format(self.get_path_object_id(target_folder))
 
         # First migrate the query
         query_id = self.create_query(alert.query, target_folder_path)
         result = self._create_alert_api_call(query_id, alert, target_folder_path)
         if alert.schedule and destination_id and warehouse_id:
-            self._create_alert_schedule_api_call(result.id, alert.schedule, destination_id, warehouse_id)
+            self._create_alert_schedule_api_call(alert, result.id, destination_id, warehouse_id)
         return result.id
 
     def _create_alert_api_call(self, query_id: str, alert: Alert, parent_folder: str):
@@ -123,13 +123,14 @@ class DBXClient:
             rearm=alert.rearm,
         )
 
-    def _create_alert_schedule_api_call(self, alert_id: str, schedule: dict, destination_id: str, warehouse_id: str):
+    def _create_alert_schedule_api_call(self, alert: Alert, alert_id: str, destination_id: str, warehouse_id: str):
         """
         Creates an alert schedule in Databricks
         """
         return self.client.jobs.create(
-            name=f"Alert {alert_id} schedule",
-            schedule=self._create_cron_schedule(schedule),
+            name=f"Alert `{alert.name}` schedule",
+            description=f"Schedule for alert `{alert.name}` ({alert_id}) with destination `{destination_id}`",
+            schedule=self._create_cron_schedule(alert.schedule),
             tasks=[
                 Task(
                     task_key="alert",
@@ -174,9 +175,12 @@ class DBXClient:
 
         return f"{seconds} {minutes} {hours} ? * * *"
 
-    def _get_path_object_id(self, path: str) -> int:
+    def get_path_object_id(self, path: str) -> int:
         """
         Check if a path exists, it is a directory, and return its ID
+
+        :param path: path to check. Ex: /Users/user@something.com/folder/
+        :return: ID of the path. If you want to reference this in the API, you need to prepend `folders/` to it.
         """
         status = self.client.workspace.get_status(path)
         if not status:
