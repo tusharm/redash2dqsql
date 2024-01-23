@@ -13,6 +13,7 @@ def run(redash: RedashClient, dbx: DBXClient):
     dashboards = redash.dashboards(tags=['tradie_engagement'])
     for dashboard in list(dashboards):
         for query in redash.queries_for(dashboard):
+            pass
             # query = redash.queries_for(dashboard)[0]
 
             # Get queries by tag
@@ -20,11 +21,14 @@ def run(redash: RedashClient, dbx: DBXClient):
 
             # Convert to Databricks format
 
-            print(query)
-            transform_query(query)
-
-            dbx_id = dbx.create_query(query, target_folder='/folders/3220363672964329')
-            pprint(dbx.get_query(dbx_id))
+            # print(query)
+            # transform_query(query)
+            #
+            # dbx_id = dbx.create_query(query, target_folder='/folders/3220363672964329')
+            # pprint(dbx.get_query(dbx_id))
+        dash_info = dbx.get_dashboard(dashboard['id'])
+        print(dash_info)
+        # dash = dbx.create_dashboard(dashboard_name='test', target_folder='/folders/3220363672964329')
 
 
 if __name__ == '__main__':

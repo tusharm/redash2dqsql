@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from databricks.sdk import WorkspaceClient
-from databricks.sdk.service.sql import QueryOptions, Parameter, ParameterType
+from databricks.sdk.service.sql import QueryOptions, Parameter, ParameterType, DashboardsAPI, RunAsRole
 
 from redash import Query
 
@@ -47,6 +47,65 @@ class DBXClient:
 
         self.update_cache(query.id, created.id)
         return created.id
+
+    def create_dashboard(self, dashboard_name: str, target_folder: str, tags=None, is_favorite=False, run_as_role=RunAsRole.VIEWER,
+                         dashboard_filters_enabled=True):
+        """
+        Create a Databricks dashboard using the Lakeview API.
+
+        Args:
+            dashboard_name (str): Name of the dashboard.
+            target_folder (str): ID or path of the parent folder where the dashboard will be created.
+            tags (list, optional): List of tags for the dashboard.
+            is_favorite (bool, optional): Set to True if the dashboard should be marked as a favorite.
+            run_as_role (str, optional): Role under which the dashboard will run (e.g., "viewer").
+            dashboard_filters_enabled (bool, optional): Set to True to enable dashboard filters.
+
+        Returns:
+            dict: Response from the create_dashboard API.
+
+        Raises:
+            ApiException: If there is an error calling the Databricks API.
+        """
+
+        # Create the dashboard in the draft state
+        created_dashboard = self.client.dashboards.create(
+            name=dashboard_name,
+            parent=target_folder,
+            tags=tags,
+            is_favorite=is_favorite,
+            run_as_role=run_as_role,
+            dashboard_filters_enabled=dashboard_filters_enabled
+        )
+
+        # # Publish the dashboard
+        # try:
+        #     dbx.lakeview.publish(
+        #         dashboard_id=created_dashboard['object_id'],
+        #         embed_credentials=True,
+        #         warehouse_id=self.warehouse_id
+        #     )
+        #     return created_dashboard
+        # except ApiException as e:
+        #     raise ApiException(f"Error publishing dashboard: {e}")
+
+    def get_dashboard(self, dashboard_id: str):
+        """
+        Retrieve a Databricks dashboard.
+
+        Args:
+            dashboard_id (str): UUID identifying the dashboard to be retrieved.
+
+        Returns:
+            dict: JSON representation of the retrieved dashboard object.
+
+        Raises:
+            ApiException: If there is an error calling the Databricks API.
+        """
+
+        # Call the get_dashboard API
+        return self.client.dashboards.get(dashboard_id)
+
 
     def read_cache(self, redash_query_id: int) -> str:
         """
