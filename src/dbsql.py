@@ -124,7 +124,7 @@ class DBXClient:
             rearm=alert.rearm,
         )
 
-    def _create_alert_schedule_api_call(self, alert: Alert, alert_id: str, destination_id: str, warehouse_id: str, run_as: str | None = None):
+    def _create_alert_schedule_api_call(self, alert: Alert, alert_id: str, destination_id: str, warehouse_id: str, run_as: str | None = None, tags: dict[str, str] = None):
         """
         Creates an alert schedule in Databricks
         """
@@ -137,11 +137,21 @@ class DBXClient:
         else:
             run_as_obj = None
 
+        if not tags:
+            tags = dict()
+
+        tags['type'] = 'alert'
+        tags['alert_id'] = alert_id
+        tags['destination_id'] = destination_id
+        tags['warehouse_id'] = warehouse_id
+        tags['migrated_from_redash'] = 'true'
+
         return self.client.jobs.create(
             name=f"Alert `{alert.name}` schedule",
             description=f"Schedule for alert `{alert.name}` ({alert_id}) with destination `{destination_id}`",
             schedule=self._create_cron_schedule(alert.schedule),
             run_as=run_as_obj,
+            tags=tags,
             tasks=[
                 Task(
                     task_key="alert",
