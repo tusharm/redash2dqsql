@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from databricks.sdk import WorkspaceClient
-from databricks.sdk.service.jobs import CronSchedule, SqlTask, Task, SqlTaskAlert, SqlTaskSubscription
+from databricks.sdk.service.jobs import CronSchedule, SqlTask, Task, SqlTaskAlert, SqlTaskSubscription, JobRunAs
 from databricks.sdk.service.sql import QueryOptions, Parameter, ParameterType, AlertOptions
 from databricks.sdk.service.workspace import ObjectType
 
@@ -92,7 +92,7 @@ class DBXClient:
             ]
         ).as_dict()
 
-    def create_alert(self, alert: Alert, target_folder: str, destination_id: str | None = None, warehouse_id: str | None = None) -> str:
+    def create_alert(self, alert: Alert, target_folder: str, destination_id: str | None = None, warehouse_id: str | None = None, run_as: str | None = None) -> str:
         """
         Given a Redash alert, creates a Databricks alert
 
@@ -100,6 +100,7 @@ class DBXClient:
         :param target_folder: target folder to create the alert in
         :param destination_id: optional ID of the destination if schedule is set
         :param warehouse_id: optional ID of the SQL warehouse to refresh query
+        :param run_as: optional user or service principle to run the alert job as
         """
 
         target_folder_path = f"folders/{self.get_path_object_id(target_folder)}"
@@ -108,7 +109,7 @@ class DBXClient:
         query_id = self.create_query(alert.query, target_folder_path)
         result = self._create_alert_api_call(query_id, alert, target_folder_path)
         if alert.schedule and destination_id and warehouse_id:
-            self._create_alert_schedule_api_call(alert, result.id, destination_id, warehouse_id)
+            self._create_alert_schedule_api_call(alert, result.id, destination_id, warehouse_id, run_as)
         return result.id
 
     def _create_alert_api_call(self, query_id: str, alert: Alert, parent_folder: str):
@@ -123,14 +124,24 @@ class DBXClient:
             rearm=alert.rearm,
         )
 
-    def _create_alert_schedule_api_call(self, alert: Alert, alert_id: str, destination_id: str, warehouse_id: str):
+    def _create_alert_schedule_api_call(self, alert: Alert, alert_id: str, destination_id: str, warehouse_id: str, run_as: str | None = None):
         """
         Creates an alert schedule in Databricks
         """
+
+        if run_as:
+            if '@' in run_as:
+                run_as_obj = JobRunAs(user_name=run_as)
+            else:
+                run_as_obj = JobRunAs(service_principal_name=run_as)
+        else:
+            run_as_obj = None
+
         return self.client.jobs.create(
             name=f"Alert `{alert.name}` schedule",
             description=f"Schedule for alert `{alert.name}` ({alert_id}) with destination `{destination_id}`",
             schedule=self._create_cron_schedule(alert.schedule),
+            run_as=run_as_obj,
             tasks=[
                 Task(
                     task_key="alert",
