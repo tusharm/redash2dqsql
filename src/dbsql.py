@@ -78,17 +78,6 @@ class DBXClient:
             dashboard_filters_enabled=dashboard_filters_enabled
         )
 
-        # # Publish the dashboard
-        # try:
-        #     dbx.lakeview.publish(
-        #         dashboard_id=created_dashboard['object_id'],
-        #         embed_credentials=True,
-        #         warehouse_id=self.warehouse_id
-        #     )
-        #     return created_dashboard
-        # except ApiException as e:
-        #     raise ApiException(f"Error publishing dashboard: {e}")
-
     def get_dashboard(self, dashboard_id: str):
         """
         Retrieve a Databricks dashboard.

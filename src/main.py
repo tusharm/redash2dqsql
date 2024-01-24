@@ -12,6 +12,7 @@ def run(redash: RedashClient, dbx: DBXClient):
     # Get queries for a dashboard
     dashboards = redash.dashboards(tags=['tradie_engagement'])
     for dashboard in list(dashboards):
+        print(redash.get_dashboard(dashboard['id']))
         for query in redash.queries_for(dashboard):
             pass
             # query = redash.queries_for(dashboard)[0]
@@ -26,9 +27,9 @@ def run(redash: RedashClient, dbx: DBXClient):
             #
             # dbx_id = dbx.create_query(query, target_folder='/folders/3220363672964329')
             # pprint(dbx.get_query(dbx_id))
-        dash_info = dbx.get_dashboard(dashboard['id'])
-        print(dash_info)
-        # dash = dbx.create_dashboard(dashboard_name='test', target_folder='/folders/3220363672964329')
+        # dash_info = dbx.get_dashboard(dashboard['id'])
+        # print(dash_info)
+        dbx.create_dashboard(dashboard_name=dashboard['name'], target_folder='')
 
 
 if __name__ == '__main__':
