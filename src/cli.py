@@ -12,15 +12,32 @@ import click
 @click.pass_context
 def cli(ctx, redash_url, redash_api_key, databricks_host, databricks_token):
     ctx.ensure_object(dict)
-
-    if not all([redash_url, redash_api_key, databricks_host, databricks_token]):
-        click.echo("Missing required options")
-        click.echo("Run 'redash2databricks --help' for usage.")
-        raise click.Abort()
     ctx.obj['redash_url'] = redash_url
     ctx.obj['redash_api_key'] = redash_api_key
     ctx.obj['databricks_host'] = databricks_host
     ctx.obj['databricks_token'] = databricks_token
+
+
+def check_required_options(ctx):
+    """
+    Extract check for required options into a function to enable --help function to work
+    """
+    if not all([ctx.obj['redash_url'], ctx.obj['redash_api_key'], ctx.obj['databricks_host'], ctx.obj['databricks_token']]):
+        click.echo("""
+        Missing required options to connect to redash and databricks:
+        --redash-url
+        --redash-api-key
+        --databricks-host
+        --databricks-token
+        
+        Pass them as arguments or set them as environment variables:
+        REDASH_URL
+        REDASH_API_KEY
+        DATABRICKS_HOST
+        DATABRICKS_TOKEN
+        """)
+        click.echo("Run 'redash2databricks --help' for usage.")
+        raise click.Abort()
 
 
 @cli.command()
@@ -33,6 +50,7 @@ def cli(ctx, redash_url, redash_api_key, databricks_host, databricks_token):
 @click.option('--run-as', help='User or the service principle to run the alert job as.', default=None)
 @click.option('--source-dialect', help='Source query SQL dialect', default=None)
 def alerts(ctx, target_folder, alert_id, tags, destination_id, warehouse_id, run_as, source_dialect):
+    check_required_options(ctx)
     from redash import RedashClient
     from dbsql import DBXClient
     from transform import transform_query

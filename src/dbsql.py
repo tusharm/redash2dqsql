@@ -134,13 +134,7 @@ class DBXClient:
         Creates an alert schedule in Databricks
         """
 
-        if run_as:
-            if '@' in run_as:
-                run_as_obj = JobRunAs(user_name=run_as)
-            else:
-                run_as_obj = JobRunAs(service_principal_name=run_as)
-        else:
-            run_as_obj = None
+        run_as_obj = self.create_job_run_as(run_as)
 
         if not tags:
             tags = dict()
@@ -214,3 +208,15 @@ class DBXClient:
         if not status.object_type == ObjectType.DIRECTORY:
             raise ValueError(f"Path `{path}` is not a directory")
         return status.object_id
+
+    def create_job_run_as(self, run_as: str | None = None):
+        """
+        Creates a job run as object
+        """
+        if run_as:
+            if '@' in run_as:
+                return JobRunAs(user_name=run_as)
+            else:
+                return JobRunAs(service_principal_name=run_as)
+        else:
+            return None
