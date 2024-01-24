@@ -136,21 +136,23 @@ class DBXClient:
 
         run_as_obj = self.create_job_run_as(run_as)
 
-        if not tags:
-            tags = dict()
-
-        tags['type'] = 'alert'
-        tags['alert_id'] = alert_id
-        tags['destination_id'] = destination_id
-        tags['warehouse_id'] = warehouse_id
-        tags['migrated_from_redash'] = 'true'
+        tags_clone = dict()
+        if tags:
+            tags_clone.update(tags)
+        if alert.query.tags:
+            tags_clone.update(alert.query.tags)
+        tags_clone['type'] = 'alert'
+        tags_clone['alert_id'] = alert_id
+        tags_clone['destination_id'] = destination_id
+        tags_clone['warehouse_id'] = warehouse_id
+        tags_clone['migrated_from_redash'] = 'true'
 
         return self.client.jobs.create(
             name=f"Alert `{alert.name}` schedule",
             description=f"Schedule for alert `{alert.name}` ({alert_id}) with destination `{destination_id}`",
             schedule=self._create_cron_schedule(alert.schedule),
             run_as=run_as_obj,
-            tags=tags,
+            tags=tags_clone,
             tasks=[
                 Task(
                     task_key="alert",
