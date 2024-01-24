@@ -105,8 +105,13 @@ class DBXClient:
 
         target_folder_path = f"folders/{self.get_path_object_id(target_folder)}"
 
-        # First migrate the query
-        query_id = self.create_query(alert.query, target_folder_path)
+        query = alert.query
+        query.tags['type'] = 'alert'
+
+        # We always create the query irrespective of whether it is cached or not to keep it as a dedicated resource
+        # for the alert
+        query_id = self.create_query(query, target_folder_path)
+
         result = self._create_alert_api_call(query_id, alert, target_folder_path)
         if alert.schedule and destination_id and warehouse_id:
             self._create_alert_schedule_api_call(alert, result.id, destination_id, warehouse_id, run_as)
