@@ -1,8 +1,15 @@
 from datetime import datetime
 
 from databricks.sdk import WorkspaceClient
-from databricks.sdk.service.sql import QueryOptions, Parameter, ParameterType, DashboardsAPI, RunAsRole, WidgetOptions, \
-    QueryVisualizationsAPI
+from databricks.sdk.service.sql import (
+    QueryOptions,
+    Parameter,
+    ParameterType,
+    DashboardsAPI,
+    RunAsRole,
+    WidgetOptions,
+    QueryVisualizationsAPI,
+)
 
 from redash import Query
 
@@ -43,15 +50,21 @@ class DBXClient:
             description=f"Migrated from Redash on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}, tags: {','.join(query.tags)}",
             query=query.query_string,
             parent=target_folder,
-            options=self._build_options(query)
+            options=self._build_options(query),
         )
 
         self.update_cache(query.id, created.id)
         return created.id
 
-    def create_dashboard(self, dashboard_name: str, target_folder: str, tags=None, is_favorite=False,
-                         run_as_role=RunAsRole.VIEWER,
-                         dashboard_filters_enabled=True):
+    def create_dashboard(
+        self,
+        dashboard_name: str,
+        target_folder: str,
+        tags=None,
+        is_favorite=False,
+        run_as_role=RunAsRole.VIEWER,
+        dashboard_filters_enabled=True,
+    ):
         """
         Create a Databricks dashboard using the Lakeview API.
 
@@ -77,11 +90,13 @@ class DBXClient:
             tags=tags,
             is_favorite=is_favorite,
             run_as_role=run_as_role,
-            dashboard_filters_enabled=dashboard_filters_enabled
+            dashboard_filters_enabled=dashboard_filters_enabled,
         )
         return created_dashboard.id
 
-    def create_widget(self, dashboard_id, visualization_id, widget_options, text, width):
+    def create_widget(
+        self, dashboard_id, visualization_id, widget_options, text, width
+    ):
         """
         Create a widget in a Databricks dashboard using the DashboardWidgetsAPI.
 
@@ -99,12 +114,13 @@ class DBXClient:
         """
 
         def _build_widget_options(widget_options):
-            options = {'parameterMappings': widget_options['options']['parameterMappings'],
-                       'isHidden': widget_options['options']['isHidden'],
-                       'position': widget_options['options']['position'],
-                       'created_at': widget_options['created_at'],
-                       'updated_at': widget_options['updated_at']
-                       }
+            options = {
+                "parameterMappings": widget_options["options"]["parameterMappings"],
+                "isHidden": widget_options["options"]["isHidden"],
+                "position": widget_options["options"]["position"],
+                "created_at": widget_options["created_at"],
+                "updated_at": widget_options["updated_at"],
+            }
 
             return WidgetOptions.from_dict(options)
 
@@ -114,12 +130,14 @@ class DBXClient:
             options=_build_widget_options(widget_options),
             width=width,
             text=text,
-            visualization_id=visualization_id
+            visualization_id=visualization_id,
         )
 
         return created_widget.id
 
-    def create_visualization(self, query_id, visualization_type, options, description=None, name=None):
+    def create_visualization(
+        self, query_id, visualization_type, options, description=None, name=None
+    ):
         """
         Create a visualization for a query in Databricks using the QueryVisualizationsAPI.
 
@@ -143,7 +161,7 @@ class DBXClient:
             type=visualization_type,
             options=options,
             description=description,
-            name=name
+            name=name,
         )
 
         return created_visualization.id
@@ -200,7 +218,7 @@ class DBXClient:
         return QueryOptions(
             parameters=[
                 build_parameter(p)
-                for p in query.options.get('parameters', [])
-                if p['name'] in query.params
+                for p in query.options.get("parameters", [])
+                if p["name"] in query.params
             ]
         ).as_dict()

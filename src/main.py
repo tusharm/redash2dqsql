@@ -35,7 +35,7 @@ def run(redash: RedashClient, dbx: DBXClient):
             # Create a Databricks query for each Redash query
             databricks_query_id = dbx.create_query(
                 query,
-                target_folder='/folders/3220363672964329'
+                target_folder='folders/3220363672964329'
             )
 
             # Print information about the Databricks query
