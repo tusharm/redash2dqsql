@@ -1,3 +1,4 @@
+import sqlglot.errors
 from sqlglot import transpile, parse_one, exp
 
 from redash import Query
@@ -15,12 +16,13 @@ def transform_query(query: Query, from_dialect='presto'):
     for q in query.depends_on:
         transform_query(q)
 
-    transpiled = transpile(query.query_string, read=from_dialect, write=TARGET_DIALECT, pretty=True)
+    transpiled = transpile(query.query_string, read=from_dialect, write=TARGET_DIALECT, pretty=True,
+                           error_level=sqlglot.errors.ErrorLevel.IGNORE)
 
     # we will only have one query
     result = transpiled[0]
 
-    result = qualify_tables_with_catalog(result, dialect=TARGET_DIALECT, catalog='hive_metastore')
+    # result = qualify_tables_with_catalog(result, dialect=TARGET_DIALECT, catalog='hive_metastore')
     result = fix_query_params(result, query.params)
 
     query.query_string = result

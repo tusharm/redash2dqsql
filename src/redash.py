@@ -41,6 +41,12 @@ class RedashClient:
         dashboards = self.redash.dashboards(tags=tags)
         return map(lambda x: self.redash.dashboard(x['id']), dashboards['results'])
 
+    def get_dashboard(self, id):
+        """
+        Returns a dashboard, by id
+        """
+        return self.redash.get_dashboard(id)
+
     def queries(self, tags=None) -> [Query]:
         """
         Returns a list of queries, optionally filtered by tags
