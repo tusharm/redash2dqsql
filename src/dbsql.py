@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from databricks.sdk import WorkspaceClient
-from databricks.sdk.service.sql import QueryOptions, Parameter, ParameterType, DashboardsAPI, RunAsRole
+from databricks.sdk.service.sql import QueryOptions, Parameter, ParameterType, DashboardsAPI, RunAsRole, WidgetOptions
 
 from redash import Query
 
@@ -48,7 +48,8 @@ class DBXClient:
         self.update_cache(query.id, created.id)
         return created.id
 
-    def create_dashboard(self, dashboard_name: str, target_folder: str, tags=None, is_favorite=False, run_as_role=RunAsRole.VIEWER,
+    def create_dashboard(self, dashboard_name: str, target_folder: str, tags=None, is_favorite=False,
+                         run_as_role=RunAsRole.VIEWER,
                          dashboard_filters_enabled=True):
         """
         Create a Databricks dashboard using the Lakeview API.
@@ -78,6 +79,43 @@ class DBXClient:
             dashboard_filters_enabled=dashboard_filters_enabled
         )
 
+    def create_widget(self, dashboard_id, visualization_id, widget_options, text, width):
+        """
+        Create a widget in a Databricks dashboard using the DashboardWidgetsAPI.
+
+        Args:
+            dashboard_id (str): ID of the Databricks dashboard where the widget will be created.
+            visualization_id (str): ID of the visualization associated with the widget.
+            text (str): Text content of the widget.
+            widget_options (dict): Widget options.
+
+        Returns:
+            dict: Response from the create_widget API.
+
+        Raises:
+            ApiException: If there is an error calling the Databricks API.
+        """
+
+        def _build_widget_options(widget_options):
+            options = {'parameterMappings': widget_options['options']['parameterMappings'],
+                       'isHidden': widget_options['options']['isHidden'],
+                       'position': widget_options['options']['position'],
+                       'created_at': widget_options['created_at'],
+                       'updated_at': widget_options['updated_at']
+                       }
+
+            test = WidgetOptions.from_dict(options)
+            return test
+
+        # Create the widget
+        created_widget = self.client.dashboard_widgets.create(
+            dashboard_id=dashboard_id,
+            options=_build_widget_options(widget_options),
+            width=width,
+            text=text,
+            visualization_id=visualization_id
+        )
+
     def get_dashboard(self, dashboard_id: str):
         """
         Retrieve a Databricks dashboard.
@@ -94,7 +132,6 @@ class DBXClient:
 
         # Call the get_dashboard API
         return self.client.dashboards.get(dashboard_id)
-
 
     def read_cache(self, redash_query_id: int) -> str:
         """
