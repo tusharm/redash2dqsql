@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 from redash_toolbelt import Redash
@@ -16,6 +18,16 @@ class Query:
     def params(self):
         parameters = self.options.get('parameters', [])
         return [p['name'] for p in parameters]
+
+
+@dataclass
+class Alert:
+    id: int
+    name: str
+    query: Query
+    schedule: dict | None
+    options: dict
+    rearm: int | None
 
 
 class RedashClient:
@@ -82,3 +94,27 @@ class RedashClient:
             self._build_query_model(self.redash.get_query(p['queryId']))
             for p in filter(query_id_exists, params)
         ]
+
+    def alerts(self, tags: list[str] = None, alert_id: int = None) -> list[Alert]:
+        """
+        Returns a list of alerts
+        """
+        if alert_id:
+            alerts = [self.redash.get_alert(alert_id)]
+        else:
+            alerts = self.redash.alerts()
+        if tags:  # alerts it-self don't have tags, but queries do
+            alerts_filtered = [a for a in alerts if set(tags).issubset(a["query"]["tags"])]
+        else:
+            alerts_filtered = alerts
+        return [self._build_alert_model(a) for a in alerts_filtered]
+
+    def _build_alert_model(self, alert_obj) -> Alert:
+        return Alert(
+            id=alert_obj['id'],
+            name=alert_obj['name'],
+            query=self._build_query_model(alert_obj['query']),
+            options=alert_obj['options'],
+            rearm=alert_obj.get('rearm'),
+            schedule=alert_obj["query"].get("schedule"),
+        )
