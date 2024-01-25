@@ -4,16 +4,23 @@ from datetime import datetime
 
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.sql import (
+    RunAsRole,
+    WidgetOptions,
+)
+from databricks.sdk.service.jobs import (
+    CronSchedule,
+    SqlTask,
+    Task,
+    SqlTaskAlert,
+    SqlTaskSubscription,
+    JobRunAs,
+)
+from databricks.sdk.service.sql import (
     QueryOptions,
     Parameter,
     ParameterType,
-    DashboardsAPI,
-    RunAsRole,
-    WidgetOptions,
-    QueryVisualizationsAPI,
+    AlertOptions,
 )
-from databricks.sdk.service.jobs import CronSchedule, SqlTask, Task, SqlTaskAlert, SqlTaskSubscription, JobRunAs
-from databricks.sdk.service.sql import QueryOptions, Parameter, ParameterType, AlertOptions
 from databricks.sdk.service.workspace import ObjectType
 
 from redash import Query, Alert
@@ -228,7 +235,14 @@ class DBXClient:
             ]
         ).as_dict()
 
-    def create_alert(self, alert: Alert, target_folder: str, destination_id: str | None = None, warehouse_id: str | None = None, run_as: str | None = None) -> str:
+    def create_alert(
+        self,
+        alert: Alert,
+        target_folder: str,
+        destination_id: str | None = None,
+        warehouse_id: str | None = None,
+        run_as: str | None = None,
+    ) -> str:
         """
         Given a Redash alert, creates a Databricks alert
 
@@ -249,7 +263,9 @@ class DBXClient:
 
         result = self._create_alert_api_call(query_id, alert, target_folder_path)
         if alert.schedule and destination_id and warehouse_id:
-            self._create_alert_schedule_api_call(alert, result.id, destination_id, warehouse_id, run_as)
+            self._create_alert_schedule_api_call(
+                alert, result.id, destination_id, warehouse_id, run_as
+            )
         return result.id
 
     def _create_alert_api_call(self, query_id: str, alert: Alert, parent_folder: str):
@@ -270,18 +286,28 @@ class DBXClient:
         """
         sanitized_dict = {}
         for key, value in options.items():
-            if key == 'op':  # TODO: extend this if you see other operators not matching < > <= >= == !=
-                if value == 'greater than':
-                    sanitized_dict['op'] = '>'
-                elif value == 'less than':
-                    sanitized_dict['op'] = '<'
+            if (
+                key == "op"
+            ):  # TODO: extend this if you see other operators not matching < > <= >= == !=
+                if value == "greater than":
+                    sanitized_dict["op"] = ">"
+                elif value == "less than":
+                    sanitized_dict["op"] = "<"
                 else:
-                    sanitized_dict['op'] = value
+                    sanitized_dict["op"] = value
             else:
                 sanitized_dict[key] = value
         return sanitized_dict
 
-    def _create_alert_schedule_api_call(self, alert: Alert, alert_id: str, destination_id: str, warehouse_id: str, run_as: str | None = None, tags: dict[str, str] = None):
+    def _create_alert_schedule_api_call(
+        self,
+        alert: Alert,
+        alert_id: str,
+        destination_id: str,
+        warehouse_id: str,
+        run_as: str | None = None,
+        tags: dict[str, str] = None,
+    ):
         """
         Creates an alert schedule in Databricks
         """
@@ -293,11 +319,11 @@ class DBXClient:
             tags_clone.update(tags)
         if alert.query.tags:
             tags_clone.update(alert.query.tags)
-        tags_clone['type'] = 'alert'
-        tags_clone['alert_id'] = alert_id
-        tags_clone['destination_id'] = destination_id
-        tags_clone['warehouse_id'] = warehouse_id
-        tags_clone['migrated_from_redash'] = 'true'
+        tags_clone["type"] = "alert"
+        tags_clone["alert_id"] = alert_id
+        tags_clone["destination_id"] = destination_id
+        tags_clone["warehouse_id"] = warehouse_id
+        tags_clone["migrated_from_redash"] = "true"
 
         return self.client.jobs.create(
             name=f"Alert `{alert.name}` schedule",
@@ -308,23 +334,27 @@ class DBXClient:
             tasks=[
                 Task(
                     task_key="alert",
-                    sql_task=SqlTask(alert=SqlTaskAlert(alert_id=alert_id, subscriptions=[
-                        SqlTaskSubscription(destination_id=destination_id)
-                    ]), warehouse_id=warehouse_id),
+                    sql_task=SqlTask(
+                        alert=SqlTaskAlert(
+                            alert_id=alert_id,
+                            subscriptions=[
+                                SqlTaskSubscription(destination_id=destination_id)
+                            ],
+                        ),
+                        warehouse_id=warehouse_id,
+                    ),
                 )
             ],
-
         )
 
     def _create_cron_schedule(self, schedule: dict) -> CronSchedule:
         """
         Creates a cron schedule from Redash schedule
         """
-        if schedule['interval']:
-            quarts_expression = self._build_quartz_expression(schedule['interval'])
+        if schedule["interval"]:
+            quarts_expression = self._build_quartz_expression(schedule["interval"])
             return CronSchedule(
-                quartz_cron_expression=quarts_expression,
-                timezone_id="UTC"
+                quartz_cron_expression=quarts_expression, timezone_id="UTC"
             )
         raise ValueError("Only interval-based schedules are supported")
 
@@ -339,7 +369,7 @@ class DBXClient:
         elif interval < 3600:
             seconds = f"{interval % 60}"
             minutes = f"*/{interval // 60}"
-            hours = '*'
+            hours = "*"
         elif interval < 86400:
             seconds = f"{interval % 60}"
             minutes = f"{(interval // 60) % 60}"
@@ -368,7 +398,7 @@ class DBXClient:
         Creates a job run as object
         """
         if run_as:
-            if '@' in run_as:
+            if "@" in run_as:
                 return JobRunAs(user_name=run_as)
             else:
                 return JobRunAs(service_principal_name=run_as)
