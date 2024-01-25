@@ -9,40 +9,42 @@ from dotenv import load_dotenv
 
 
 def run(redash: RedashClient, dbx: DBXClient):
+    processed_query_ids = set()
     # Get queries for a dashboard
     dashboards = redash.dashboards(tags=['tradie_engagement'])
     for dashboard in list(dashboards):
-        dashboard_info = redash.get_dashboard(dashboard['id'])
-        dashboard_id = dashboard_info['id']
-        dashboard_widgets = dashboard_info['widgets']
-        for widget_options in dashboard_widgets:
-            widget_text = widget_options['text']
-            widget_width = widget_options['width']
-            visualization_id = widget_options['visualization']['id']
-        #
-            dbx.create_widget(dashboard_id=dashboard_id,
-                              widget_options=widget_options,
-                              visualization_id=visualization_id,
-                              text=widget_text,
-                              width=widget_width)
-        # print(redash.get_dashboard(dashboard['id']))
-        # for query in redash.queries_for(dashboard):
-            # pass
-            # query = redash.queries_for(dashboard)[0]
+        databricks_dashboard_id = dbx.create_dashboard(dashboard_name=dashboard['name'], target_folder='')
 
-            # Get queries by tag
-            # query = redash.queries(tags=['TC'])[0]
+        for query in redash.queries_for(dashboard):
 
-            # Convert to Databricks format
+            transform_query(query)
+            databricks_query_id = dbx.create_query(query, target_folder='/folders/3220363672964329')
+            pprint(dbx.get_query(databricks_query_id))
 
-            # print(query)
-            # transform_query(query)
-            #
-            # dbx_id = dbx.create_query(query, target_folder='/folders/3220363672964329')
-            # pprint(dbx.get_query(dbx_id))
-        # dash_info = dbx.get_dashboard(dashboard['id'])
-        # print(dash_info)
-        # dbx.create_dashboard(dashboard_name=dashboard['name'], target_folder='')
+            redash_dashboard_info = redash.get_dashboard(dashboard['id'])
+            redash_dashboard_widgets = redash_dashboard_info['widgets']
+            for widget_options in redash_dashboard_widgets:
+                if databricks_query_id not in processed_query_ids:
+                    widget_text = widget_options['text']
+                    widget_width = widget_options['width']
+
+                    visualization_id = dbx.create_visualization(
+                        query_id=databricks_query_id,
+                        visualization_type=widget_options['visualization']['type'],
+                        options=widget_options['options'],
+                        description=widget_options['visualization']['description'],
+                        name=widget_options['visualization']['name']
+                    )
+
+                    dbx.create_widget(
+                        dashboard_id=databricks_dashboard_id,
+                        widget_options=widget_options,
+                        visualization_id=visualization_id,
+                        text=widget_text,
+                        width=widget_width
+                    )
+                    processed_query_ids.add(databricks_query_id)
+
 
 
 if __name__ == '__main__':

@@ -1,7 +1,8 @@
 from datetime import datetime
 
 from databricks.sdk import WorkspaceClient
-from databricks.sdk.service.sql import QueryOptions, Parameter, ParameterType, DashboardsAPI, RunAsRole, WidgetOptions
+from databricks.sdk.service.sql import QueryOptions, Parameter, ParameterType, DashboardsAPI, RunAsRole, WidgetOptions, \
+    QueryVisualizationsAPI
 
 from redash import Query
 
@@ -63,7 +64,7 @@ class DBXClient:
             dashboard_filters_enabled (bool, optional): Set to True to enable dashboard filters.
 
         Returns:
-            dict: Response from the create_dashboard API.
+            str: dashboard id from the create_dashboard API.
 
         Raises:
             ApiException: If there is an error calling the Databricks API.
@@ -78,6 +79,7 @@ class DBXClient:
             run_as_role=run_as_role,
             dashboard_filters_enabled=dashboard_filters_enabled
         )
+        return created_dashboard.id
 
     def create_widget(self, dashboard_id, visualization_id, widget_options, text, width):
         """
@@ -90,7 +92,7 @@ class DBXClient:
             widget_options (dict): Widget options.
 
         Returns:
-            dict: Response from the create_widget API.
+            str: widget id from the create_widget API.
 
         Raises:
             ApiException: If there is an error calling the Databricks API.
@@ -104,8 +106,7 @@ class DBXClient:
                        'updated_at': widget_options['updated_at']
                        }
 
-            test = WidgetOptions.from_dict(options)
-            return test
+            return WidgetOptions.from_dict(options)
 
         # Create the widget
         created_widget = self.client.dashboard_widgets.create(
@@ -115,6 +116,37 @@ class DBXClient:
             text=text,
             visualization_id=visualization_id
         )
+
+        return created_widget.id
+
+    def create_visualization(self, query_id, visualization_type, options, description=None, name=None):
+        """
+        Create a visualization for a query in Databricks using the QueryVisualizationsAPI.
+
+        Args:
+            query_id (str): ID of the Databricks query where the visualization will be added.
+            visualization_type (str): Type of visualization (e.g., chart, table, pivot table, etc.).
+            options (dict): Visualization options.
+            description (str, optional): A short description of the visualization.
+            name (str, optional): The name of the visualization that appears on dashboards and the query screen.
+
+        Returns:
+            str: visualization id from the create_visualization API.
+
+        Raises:
+            ApiException: If there is an error calling the Databricks API.
+        """
+
+        # Create the visualization
+        created_visualization = self.client.query_visualizations.create(
+            query_id=query_id,
+            type=visualization_type,
+            options=options,
+            description=description,
+            name=name
+        )
+
+        return created_visualization.id
 
     def get_dashboard(self, dashboard_id: str):
         """
