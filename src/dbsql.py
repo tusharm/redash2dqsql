@@ -106,7 +106,6 @@ class DBXClient:
         target_folder_path = f"folders/{self.get_path_object_id(target_folder)}"
 
         query = alert.query
-        query.tags['type'] = 'alert'
 
         # We always create the query irrespective of whether it is cached or not to keep it as a dedicated resource
         # for the alert
@@ -123,11 +122,28 @@ class DBXClient:
         """
         return self.client.alerts.create(
             name=alert.name,
-            options=AlertOptions.from_dict(alert.options),
+            options=AlertOptions.from_dict(self._sanitize_alert_options(alert.options)),
             query_id=query_id,
             parent=parent_folder,
             rearm=alert.rearm,
         )
+
+    def _sanitize_alert_options(self, options: dict) -> dict:
+        """
+        Sanitizes alert options to modify the keys and values to match databricks alert options
+        """
+        sanitized_dict = {}
+        for key, value in options.items():
+            if key == 'op':  # TODO: extend this if you see other operators not matching < > <= >= == !=
+                if value == 'greater than':
+                    sanitized_dict['op'] = '>'
+                elif value == 'less than':
+                    sanitized_dict['op'] = '<'
+                else:
+                    sanitized_dict['op'] = value
+            else:
+                sanitized_dict[key] = value
+        return sanitized_dict
 
     def _create_alert_schedule_api_call(self, alert: Alert, alert_id: str, destination_id: str, warehouse_id: str, run_as: str | None = None, tags: dict[str, str] = None):
         """

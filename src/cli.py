@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import traceback
+
 import click
 
 
@@ -49,7 +51,8 @@ def check_required_options(ctx):
 @click.option('--warehouse-id', help='SQL Warehouse ID', default=None)
 @click.option('--run-as', help='User or the service principle to run the alert job as.', default=None)
 @click.option('--source-dialect', help='Source query SQL dialect', default=None)
-def alerts(ctx, target_folder, alert_id, tags, destination_id, warehouse_id, run_as, source_dialect):
+@click.option('--no-sqlglot', help='Disable SQL glot based query transformations', default=False, is_flag=True)
+def alerts(ctx, target_folder, alert_id, tags, destination_id, warehouse_id, run_as, source_dialect, no_sqlglot):
     check_required_options(ctx)
     from redash import RedashClient
     from dbsql import DBXClient
@@ -60,10 +63,11 @@ def alerts(ctx, target_folder, alert_id, tags, destination_id, warehouse_id, run
 
     alerts_list = redash.alerts(tags=tags, alert_id=alert_id)
     for alert in alerts_list:
-        if source_dialect:
-            transform_query(alert.query, source_dialect)
-        else:
-            transform_query(alert.query)
+        if not no_sqlglot:
+            if source_dialect:
+                transform_query(alert.query, source_dialect)
+            else:
+                transform_query(alert.query)
         try:
             dbx_id = dbx.create_alert(
                 alert,
@@ -74,6 +78,7 @@ def alerts(ctx, target_folder, alert_id, tags, destination_id, warehouse_id, run
             )
             click.echo(f"Created alert {dbx_id}")
         except Exception as e:
+            traceback.print_tb(e.__traceback__)
             click.echo(e)
             raise click.Abort(e)
 
