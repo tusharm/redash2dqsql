@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 
 from databricks.sdk import WorkspaceClient
-from databricks.sdk.service.jobs import CronSchedule, SqlTask, Task, SqlTaskAlert, SqlTaskSubscription
+from databricks.sdk.service.jobs import CronSchedule, SqlTask, Task, SqlTaskAlert, SqlTaskSubscription, JobRunAs
 from databricks.sdk.service.sql import QueryOptions, Parameter, ParameterType, AlertOptions
 from databricks.sdk.service.workspace import ObjectType
 
@@ -92,7 +92,7 @@ class DBXClient:
             ]
         ).as_dict()
 
-    def create_alert(self, alert: Alert, target_folder: str, destination_id: str | None = None, warehouse_id: str | None = None) -> str:
+    def create_alert(self, alert: Alert, target_folder: str, destination_id: str | None = None, warehouse_id: str | None = None, run_as: str | None = None) -> str:
         """
         Given a Redash alert, creates a Databricks alert
 
@@ -100,15 +100,20 @@ class DBXClient:
         :param target_folder: target folder to create the alert in
         :param destination_id: optional ID of the destination if schedule is set
         :param warehouse_id: optional ID of the SQL warehouse to refresh query
+        :param run_as: optional user or service principle to run the alert job as
         """
 
         target_folder_path = f"folders/{self.get_path_object_id(target_folder)}"
 
-        # First migrate the query
-        query_id = self.create_query(alert.query, target_folder_path)
+        query = alert.query
+
+        # We always create the query irrespective of whether it is cached or not to keep it as a dedicated resource
+        # for the alert
+        query_id = self.create_query(query, target_folder_path)
+
         result = self._create_alert_api_call(query_id, alert, target_folder_path)
         if alert.schedule and destination_id and warehouse_id:
-            self._create_alert_schedule_api_call(alert, result.id, destination_id, warehouse_id)
+            self._create_alert_schedule_api_call(alert, result.id, destination_id, warehouse_id, run_as)
         return result.id
 
     def _create_alert_api_call(self, query_id: str, alert: Alert, parent_folder: str):
@@ -117,20 +122,53 @@ class DBXClient:
         """
         return self.client.alerts.create(
             name=alert.name,
-            options=AlertOptions.from_dict(alert.options),
+            options=AlertOptions.from_dict(self._sanitize_alert_options(alert.options)),
             query_id=query_id,
             parent=parent_folder,
             rearm=alert.rearm,
         )
 
-    def _create_alert_schedule_api_call(self, alert: Alert, alert_id: str, destination_id: str, warehouse_id: str):
+    def _sanitize_alert_options(self, options: dict) -> dict:
+        """
+        Sanitizes alert options to modify the keys and values to match databricks alert options
+        """
+        sanitized_dict = {}
+        for key, value in options.items():
+            if key == 'op':  # TODO: extend this if you see other operators not matching < > <= >= == !=
+                if value == 'greater than':
+                    sanitized_dict['op'] = '>'
+                elif value == 'less than':
+                    sanitized_dict['op'] = '<'
+                else:
+                    sanitized_dict['op'] = value
+            else:
+                sanitized_dict[key] = value
+        return sanitized_dict
+
+    def _create_alert_schedule_api_call(self, alert: Alert, alert_id: str, destination_id: str, warehouse_id: str, run_as: str | None = None, tags: dict[str, str] = None):
         """
         Creates an alert schedule in Databricks
         """
+
+        run_as_obj = self.create_job_run_as(run_as)
+
+        tags_clone = dict()
+        if tags:
+            tags_clone.update(tags)
+        if alert.query.tags:
+            tags_clone.update(alert.query.tags)
+        tags_clone['type'] = 'alert'
+        tags_clone['alert_id'] = alert_id
+        tags_clone['destination_id'] = destination_id
+        tags_clone['warehouse_id'] = warehouse_id
+        tags_clone['migrated_from_redash'] = 'true'
+
         return self.client.jobs.create(
             name=f"Alert `{alert.name}` schedule",
             description=f"Schedule for alert `{alert.name}` ({alert_id}) with destination `{destination_id}`",
             schedule=self._create_cron_schedule(alert.schedule),
+            run_as=run_as_obj,
+            tags=tags_clone,
             tasks=[
                 Task(
                     task_key="alert",
@@ -188,3 +226,15 @@ class DBXClient:
         if not status.object_type == ObjectType.DIRECTORY:
             raise ValueError(f"Path `{path}` is not a directory")
         return status.object_id
+
+    def create_job_run_as(self, run_as: str | None = None):
+        """
+        Creates a job run as object
+        """
+        if run_as:
+            if '@' in run_as:
+                return JobRunAs(user_name=run_as)
+            else:
+                return JobRunAs(service_principal_name=run_as)
+        else:
+            return None
