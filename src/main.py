@@ -12,19 +12,26 @@ from pprint import pprint
 
 from pprint import pprint
 
+the_tag = 'migrate_pes'
+folder_id_for_dashboard = '2880663234537231'
+folder_id_for_queries = '2880663234537231'
+dashboard_id = 165 # It's easier to manage when you run this script for a single dashboard at a time
+
 def run(redash: RedashClient, dbx: DBXClient):
     # Set to keep track of processed query IDs
     processed_query_ids = set()
 
     # Get dashboards with the specified tag
-    dashboards = redash.dashboards(tags=['tradie_engagement'])
+    dashboards = redash.dashboards(tags=[the_tag])
 
     # Loop through each dashboard
     for dashboard in dashboards:
+        if dashboard.get('id') != dashboard_id:
+            continue
         # Create a Databricks dashboard for each Redash dashboard
         databricks_dashboard_id = dbx.create_dashboard(
             dashboard_name=dashboard['name'],
-            target_folder=''
+            target_folder=f'folders/{folder_id_for_dashboard}'
         )
 
         # Loop through queries associated with the Redash dashboard
@@ -35,7 +42,7 @@ def run(redash: RedashClient, dbx: DBXClient):
             # Create a Databricks query for each Redash query
             databricks_query_id = dbx.create_query(
                 query,
-                target_folder='folders/3220363672964329'
+                target_folder=f'folders/{folder_id_for_queries}'
             )
 
             # Print information about the Databricks query
