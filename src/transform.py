@@ -16,7 +16,7 @@ def transform_query(query: Query, from_dialect='presto'):
     for q in query.depends_on:
         transform_query(q)
 
-    transpiled = transpile(query.query_string, read=from_dialect, write=TARGET_DIALECT, pretty=True,
+    transpiled = transpile(query.query_string.strip(), read=from_dialect, write=TARGET_DIALECT, pretty=True,
                            error_level=sqlglot.errors.ErrorLevel.IGNORE)
 
     # we will only have one query
