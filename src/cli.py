@@ -83,5 +83,83 @@ def alerts(ctx, target_folder, alert_id, tags, destination_id, warehouse_id, run
             raise click.Abort(e)
 
 
+@cli.command
+@click.pass_context
+@click.argument('target-folder', type=click.Path(file_okay=False, dir_okay=True, path_type=str))
+@click.option('--query-id', help='Query ID', default=None)
+@click.option('--tags', help='Tags to filter on', multiple=True, default=None)
+@click.option('--warehouse-id', help='SQL Warehouse ID', default=None)
+@click.option('--run-as', help='User or the service principle to run the alert job as.', default=None)
+@click.option('--source-dialect', help='Source query SQL dialect', default=None)
+@click.option('--no-sqlglot', help='Disable SQL glot based query transformations', default=False, is_flag=True)
+def queries(ctx, target_folder, query_id, tags, warehouse_id, run_as, source_dialect, no_sqlglot):
+    check_required_options(ctx)
+    from redash import RedashClient
+    from dbsql import DBXClient
+    from transform import transform_query
+
+    redash = RedashClient(ctx.obj['redash_url'], ctx.obj['redash_api_key'])
+    dbx = DBXClient(ctx.obj['databricks_host'], ctx.obj['databricks_token'])
+
+    queries_list = redash.queries(tags=tags, query_id=query_id)
+    for query in queries_list:
+        if not no_sqlglot:
+            if source_dialect:
+                transform_query(query.query, source_dialect)
+            else:
+                transform_query(query.query)
+        try:
+            dbx_id = dbx.create_query(
+                query,
+                target_folder,
+            )
+            click.echo(f"Created query {dbx_id}")
+            if query.schedule and warehouse_id:
+                job_id = dbx.create_query_schedule(
+                    dbx_id,
+                    query.schedule,
+                    warehouse_id,
+                    run_as=run_as
+                )
+                if job_id:
+                    click.echo(f"Create scheduled job for {dbx_id} with id {job_id}")
+        except Exception as e:
+            traceback.print_tb(e.__traceback__)
+            click.echo(e)
+            raise click.Abort(e)
+
+
+def dashboards(ctx, target_folder, dashboard_id, tags, warehouse_id, run_as, source_dialect, no_sqlglot):
+    check_required_options(ctx)
+    from redash import RedashClient
+    from dbsql import DBXClient
+    from transform import transform_query
+
+    redash = RedashClient(ctx.obj['redash_url'], ctx.obj['redash_api_key'])
+    dbx = DBXClient(ctx.obj['databricks_host'], ctx.obj['databricks_token'])
+
+    dashboards_list = redash.dashboards(tags=tags, dashboard_id=dashboard_id)
+    for dashboard in dashboards_list:
+        if not no_sqlglot:
+            if source_dialect:
+                for widget in dashboard.widgets:
+                    if widget.visualization.query:
+                        transform_query(widget.visualization.query, source_dialect)
+            else:
+                for widget in dashboard.widgets:
+                    if widget.visualization.query:
+                        transform_query(widget.visualization.query)
+        try:
+            dbx_id = dbx.create_dashboard(
+                dashboard,
+                target_folder,
+            )
+            click.echo(f"Created dashboard {dbx_id}")
+        except Exception as e:
+            traceback.print_tb(e.__traceback__)
+            click.echo(e)
+            raise click.Abort(e)
+
+
 if __name__ == '__main__':
     cli(obj={})

@@ -47,14 +47,17 @@ class RedashClient:
         """
         return self.redash.get_dashboard(id)
 
-    def queries(self, tags=None) -> [Query]:
+    def queries(self, tags=None, query_id: int | None = None) -> [Query]:
         """
         Returns a list of queries, optionally filtered by tags
         """
-        query_objs = self.redash.queries(tags=tags)
+        if query_id:
+            query_objs = [self.redash.get_query(query_id)]
+        else:
+            query_objs = self.redash.queries(tags=tags)['results']
         return [
             self._build_query_model(q)
-            for q in query_objs['results']
+            for q in query_objs
         ]
 
     def queries_for(self, dashboard) -> [Query]:

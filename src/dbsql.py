@@ -13,7 +13,7 @@ from databricks.sdk.service.jobs import (
     Task,
     SqlTaskAlert,
     SqlTaskSubscription,
-    JobRunAs,
+    JobRunAs, SqlTaskQuery,
 )
 from databricks.sdk.service.sql import (
     QueryOptions,
@@ -34,9 +34,9 @@ class DBXClient:
         self.warehouse_id = warehouse.id
 
         # TODO: ideally this should be external eg a Delta table
-        self.cache = dict()
+        self.cache: dict[int, str] = dict()
 
-    def get_query(self, id):
+    def get_query(self, id: str):
         return self.client.queries.get(id)
 
     def create_query(self, query: Query, target_folder: str) -> str:
@@ -67,6 +67,30 @@ class DBXClient:
 
         self.update_cache(query.id, created.id)
         return created.id
+
+    def create_query_schedule(self, query_id: str, schedule: dict, warehouse_id: str, run_as: str | None = None):
+        """
+        Creates a Databricks query schedule
+        """
+        run_as_obj = self.create_job_run_as(run_as)
+        response = self.client.jobs.create(
+            name=f"Query `{query_id}` schedule",
+            description=f"Schedule for query `{query_id}` with warehouse `{warehouse_id}`",
+            schedule=self._create_cron_schedule(schedule),
+            run_as=run_as_obj,
+            tasks=[
+                Task(
+                    task_key="sql",
+                    sql_task=SqlTask(
+                        query=SqlTaskQuery(query_id=query_id),
+                        warehouse_id=warehouse_id,
+                    ),
+                )
+            ],
+        )
+        if response:
+            return response.job_id
+        return None
 
     def create_dashboard(
         self,
@@ -195,14 +219,14 @@ class DBXClient:
         # Call the get_dashboard API
         return self.client.dashboards.get(dashboard_id)
 
-    def read_cache(self, redash_query_id: int) -> str:
+    def read_cache(self, redash_query_id: int) -> str | None:
         """
         Looks up a cache to see if this query has been already migrated
         """
 
-        return self.cache.get(redash_query_id, None)
+        return self.cache.get(redash_query_id)
 
-    def update_cache(self, redash_id: int, dbx_id: int):
+    def update_cache(self, redash_id: int, dbx_id: str):
         """
         Update the cache, so we can find the ID later
         """
@@ -294,7 +318,12 @@ class DBXClient:
                 elif value == "less than":
                     sanitized_dict["op"] = "<"
                 else:
-                    sanitized_dict["op"] = value
+                    sanitized_dict['op'] = value
+            elif key == 'value':  # The value object sometimes read as a None
+                if value == 0:
+                    sanitized_dict['value'] = '0'
+                else:
+                    sanitized_dict['value'] = value
             else:
                 sanitized_dict[key] = value
         return sanitized_dict
