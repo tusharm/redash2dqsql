@@ -129,6 +129,15 @@ def queries(ctx, target_folder, query_id, tags, warehouse_id, run_as, source_dia
             raise click.Abort(e)
 
 
+@cli.command
+@click.pass_context
+@click.argument('target-folder', type=click.Path(file_okay=False, dir_okay=True, path_type=str))
+@click.option('--dashboard-id', help='Dashboard ID', default=None)
+@click.option('--tags', help='Tags to filter on', multiple=True, default=None)
+@click.option('--warehouse-id', help='SQL Warehouse ID', default=None)
+@click.option('--run-as', help='User or the service principle to run the alert job as.', default=None)
+@click.option('--source-dialect', help='Source query SQL dialect', default=None)
+@click.option('--no-sqlglot', help='Disable SQL glot based query transformations', default=False, is_flag=True)
 def dashboards(ctx, target_folder, dashboard_id, tags, warehouse_id, run_as, source_dialect, no_sqlglot):
     check_required_options(ctx)
     from redash import RedashClient
@@ -138,7 +147,10 @@ def dashboards(ctx, target_folder, dashboard_id, tags, warehouse_id, run_as, sou
     redash = RedashClient(ctx.obj['redash_url'], ctx.obj['redash_api_key'])
     dbx = DBXClient(ctx.obj['databricks_host'], ctx.obj['databricks_token'])
 
-    dashboards_list = redash.dashboards(tags=tags, dashboard_id=dashboard_id)
+    if dashboard_id:
+        dashboards_list = [redash.get_dashboard(dashboard_id)]
+    else:
+        dashboards_list = redash.dashboards(tags=tags)
     for dashboard in dashboards_list:
         if not no_sqlglot:
             if source_dialect:
