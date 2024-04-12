@@ -4,6 +4,8 @@ import traceback
 
 import click
 
+from redash import Query
+
 
 @click.group
 @click.version_option(version='1.0.0')
@@ -105,11 +107,11 @@ def queries(ctx, target_folder, query_id, tags, warehouse_id, run_as, source_dia
     for query in queries_list:
         if not no_sqlglot:
             if source_dialect:
-                transform_query(query.query, source_dialect)
+                transform_query(query, source_dialect)
             else:
-                transform_query(query.query)
+                transform_query(query)
         try:
-            dbx_id = dbx.create_query(
+            dbx_id = dbx.create_query_ex(
                 query,
                 target_folder,
             )
@@ -155,14 +157,14 @@ def dashboards(ctx, target_folder, dashboard_id, tags, warehouse_id, run_as, sou
         if not no_sqlglot:
             if source_dialect:
                 for widget in dashboard.widgets:
-                    if widget.visualization.query:
-                        transform_query(widget.visualization.query, source_dialect)
+                    if widget.visualization and widget.query:
+                        transform_query(widget.query, source_dialect)
             else:
                 for widget in dashboard.widgets:
-                    if widget.visualization.query:
-                        transform_query(widget.visualization.query)
+                    if widget.visualization and widget.query:
+                        transform_query(widget.query)
         try:
-            dbx_id = dbx.create_dashboard(
+            dbx_id = dbx.create_dashboard_ex(
                 dashboard,
                 target_folder,
             )
