@@ -527,7 +527,8 @@ class DBXClient:
             dashboard_filters_enabled=dashboard.dashboard_filters_enabled,
         )
 
-        query_ids = {w.query.id: self.create_query(w.query, f"folders/{dashboard_queries_folder_id}") for w in dashboard.widgets if w.query}
+        queries_to_create = {w.query.id: w.query for w in dashboard.widgets if w.query}.values()
+        query_ids = {q.id: self.create_query(q, f"folders/{dashboard_queries_folder_id}") for q in queries_to_create}
         for widget in dashboard.widgets:
             if not widget.query:
                 self.create_text_widget(
