@@ -36,17 +36,16 @@ class DBXClient:
         self.query_visualizations_api = QueryVisualizationsAPI(self.client)
         self.dashboard_widgets_api = DashboardWidgetsAPI(self.client)
 
-
         warehouse = self.client.data_sources.list()[0]
         self.warehouse_id = warehouse.id
 
         # TODO: ideally this should be external eg a Delta table
-        self.cache: dict[int, str] = dict()
+        self.cache: dict[int, tuple[str, dict[int, str]]] = dict()
 
     def get_query(self, id: str):
         return self.client.queries.get(id)
 
-    def create_query(self, query: Query, target_folder: str) -> (str, dict[str, str]):
+    def create_query(self, query: Query, target_folder: str) -> (str, dict[int, str]):
         """
         Given a Query model, creates a Databricks query at the target location.
 
@@ -58,9 +57,9 @@ class DBXClient:
         for q in query.depends_on:
             self.create_query(q, target_folder)
 
-        cached_id = self.read_cache(query.id)
-        if cached_id:
-            return cached_id
+        cached_data = self.read_cache(query.id)
+        if cached_data:
+            return cached_data
 
         # currently, API doesn't support attaching tags!
         created = self.client.queries.create(
@@ -76,7 +75,9 @@ class DBXClient:
             new_viz_id = self.create_visualization(created.id, v.type.value, self._update_visualization_options(v.options), v.description, v.name)
             viz_id_map[v.id] = new_viz_id
 
-        self.update_cache(query.id, created.id)
+        if not created.id:
+            raise ValueError("Failed to create query")
+        self.update_cache(query.id, (created.id, viz_id_map))
         return created.id, viz_id_map
 
     def _update_visualization_options(self, options: dict) -> dict:
@@ -203,19 +204,19 @@ class DBXClient:
             ApiException: If there is an error calling the Databricks API.
         """
 
-        def _build_widget_options(widget_options):
-            options = {
-                "parameterMappings": widget_options["parameterMappings"],
-                "isHidden": widget_options["isHidden"],
-                "position": widget_options["position"]
-            }
+        options = {
+            "isHidden": widget_options["isHidden"],
+            "position": widget_options["position"]
+        }
+        if "parameterMappings" in widget_options:
+            options["parameterMappings"] = widget_options["parameterMappings"]
 
-            return WidgetOptions.from_dict(options)
+        widget_options_obj = WidgetOptions.from_dict(options)
 
         # Create the widget
         created_widget = self.client.dashboard_widgets.create(
             dashboard_id=dashboard_id,
-            options=_build_widget_options(widget_options),
+            options=widget_options_obj,
             text=text,
             width=width
         )
@@ -270,18 +271,18 @@ class DBXClient:
         # Call the get_dashboard API
         return self.client.dashboards.get(dashboard_id)
 
-    def read_cache(self, redash_query_id: int) -> str | None:
+    def read_cache(self, redash_query_id: int) -> tuple[str, dict[int, str]] | None:
         """
         Looks up a cache to see if this query has been already migrated
         """
 
         return self.cache.get(redash_query_id)
 
-    def update_cache(self, redash_id: int, dbx_id: str):
+    def update_cache(self, redash_id: int, dbx_data: tuple[str, dict[int, str]]):
         """
         Update the cache, so we can find the ID later
         """
-        self.cache[redash_id] = dbx_id
+        self.cache[redash_id] = dbx_data
 
     def _build_options(self, query) -> dict:
         """
