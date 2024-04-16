@@ -149,7 +149,7 @@ class DBXClient:
         return created_dashboard.id
 
     def create_widget(
-        self, dashboard_id, visualization_id, widget_options, text, width
+        self, dashboard_id, visualization_id, widget_options, text, width, title=None
     ):
         """
         Create a widget in a Databricks dashboard using the DashboardWidgetsAPI.
@@ -159,6 +159,7 @@ class DBXClient:
             visualization_id (str): ID of the visualization associated with the widget.
             text (str): Text content of the widget.
             widget_options (dict): Widget options.
+            title (str, optional): Title of the widget.
 
         Returns:
             str: widget id from the create_widget API.
@@ -169,11 +170,10 @@ class DBXClient:
 
         def _build_widget_options(widget_options):
             options = {
-                "parameterMappings": widget_options["parameterMappings"],
-                "isHidden": widget_options["isHidden"],
-                "position": widget_options["position"]
+                **widget_options
             }
-
+            if title:
+                options["title"] = title
             return WidgetOptions.from_dict(options)
 
         # Create the widget
@@ -544,7 +544,8 @@ class DBXClient:
                     visualization_id=query_ids[widget.query.id][1][widget.visualization.id],
                     widget_options=widget.options,
                     text=widget.text,
-                    width=widget.width
+                    width=widget.width,
+                    title=widget.visualization.name,
                 )
 
     def create_query_ex(self, query: Query, target_folder: str, should_create_folder: bool = None) -> str:

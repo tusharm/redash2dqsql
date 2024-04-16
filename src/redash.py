@@ -62,6 +62,7 @@ class Widget:
     visualization: Visualization | None
     options: dict | None = None
     width: int | None = None
+    name: str | None = None
 
 
 @dataclass
@@ -216,7 +217,8 @@ class RedashClient:
                 query=query,
                 visualization=visualization,
                 options=options,
-                width=widget_obj.get('width')
+                width=widget_obj.get('width'),
+                name=visualization.name if visualization else None
             )
         return Widget(
             id=widget_obj['id'],
