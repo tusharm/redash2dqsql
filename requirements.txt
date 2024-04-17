@@ -3,3 +3,4 @@ sqlglot
 databricks-sdk
 click
 python-dotenv
+databricks-sql-connector
