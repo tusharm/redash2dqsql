@@ -63,7 +63,7 @@ def org_specific_post_transformations(query: Query, from_dialect='presto'):
     return query
 
 
-def transform_query(query: Query, from_dialect='presto'):
+def transform_query(query: Query, from_dialect=None):
     """
     Transforms the query from the given dialect to Databricks dialect.
     Also, applies post-processing steps on the transformed results:
@@ -71,7 +71,12 @@ def transform_query(query: Query, from_dialect='presto'):
         2. fixes query params, messed up by sqlglot
     """
     for q in query.depends_on:
-        transform_query(q)
+        transform_query(q, from_dialect)
+
+    if from_dialect is None:
+        from_dialect = query.source.dialect
+    if from_dialect is None:
+        from_dialect = 'presto'
 
     org_specific_pre_transformations(query, from_dialect=from_dialect)
 

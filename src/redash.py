@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import enum
 from dataclasses import dataclass, field
+from functools import lru_cache
 
 from redash_toolbelt import Redash
 
@@ -29,6 +30,14 @@ class Visualization:
 
 
 @dataclass
+class Source:
+    id: int
+    name: str
+    type: str
+    dialect: str | None = None
+
+
+@dataclass
 class Query:
     id: int
     name: str
@@ -37,6 +46,7 @@ class Query:
     tags: [] = field(default_factory=list)
     depends_on: [] = field(default_factory=list)
     visualizations: list[Visualization] = field(default_factory=list)
+    source: Source | None = None
 
     @property
     def params(self):
@@ -125,13 +135,15 @@ class RedashClient:
         return None
 
     def _build_query_model(self, query_obj) -> Query:
+        data_source = self.get_sources()[query_obj['data_source_id']]
         query = Query(
             id=query_obj['id'],
             name=query_obj['name'],
             query_string=query_obj['query'],
             options=query_obj['options'],
             tags=query_obj['tags'],
-            depends_on=self._depends_on_queries(query_obj)
+            depends_on=self._depends_on_queries(query_obj),
+            source=data_source
         )
         if 'visualizations' in query_obj:
             query.visualizations.extend([
@@ -229,4 +241,22 @@ class RedashClient:
             width=widget_obj.get('width')
         )
 
+    @lru_cache
+    def get_sources(self):
+        """
+        Returns a list of data sources
+        """
+        sources = self.redash.get_data_sources()
+        return {s['id']: self._build_source_model(s) for s in sources}
+
+    def _build_source_model(self, source_obj) -> Source:
+        _dialect_map = {'rds_mysql': 'mysql', 'athena': 'presto', 'pg': 'postgres'}
+
+        return Source(
+            id=source_obj['id'],
+            name=source_obj['name'],
+            type=source_obj['type'],
+            dialect=_dialect_map.get(source_obj['type'])
+
+        )
 

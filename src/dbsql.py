@@ -548,7 +548,7 @@ class DBXClient:
                     title=widget.visualization.name,
                 )
 
-    def create_query_ex(self, query: Query, target_folder: str, should_create_folder: bool = None) -> str:
+    def create_query_ex(self, query: Query, target_folder: str, should_create_folder: bool = None) -> (str, dict[int, str]):
         """
         Given a Query model, creates a Databricks query at the target location.
 
@@ -557,26 +557,15 @@ class DBXClient:
 
         Also, caches mapping of migrated queries to enable re-use
         """
-        for q in query.depends_on:
-            self.create_query_ex(q, target_folder)
 
-        # if not target_folder.startswith("folders/"):
-        #     if should_create_folder:
-        #         query_slug = query.name.replace(" ", "_").lower()
-        #         target_folder = f"{target_folder}/{query_slug}"
-        #     target_folder = f"folders/{self.get_path_object_id(target_folder)}"
-        #
-        # created = self.queries_api.create(
-        #     name=query.name,
-        #     data_source_id=self.warehouse_id,
-        #     description=f"Migrated from Redash on {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}, tags: {','.join(query.tags)}",
-        #     query=query.query_string,
-        #     parent=target_folder,
-        #     options=self._build_options(query),
-        # )
-        # visualization_id_map = {}
-        # print
+        if should_create_folder is None:
+            should_create_folder = False
 
-        print(query)
+        if not target_folder.startswith("folders/"):
+            if should_create_folder:
+                query_slug = query.name.replace(" ", "_").lower()
+                target_folder = f"{target_folder}/{query_slug}"
+                self.create_directory(target_folder)
+            target_folder = f"folders/{self.get_path_object_id(target_folder)}"
 
-        # return created.id
+        return self.create_query(query, target_folder)

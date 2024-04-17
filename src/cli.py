@@ -94,7 +94,8 @@ def alerts(ctx, target_folder, alert_id, tags, destination_id, warehouse_id, run
 @click.option('--run-as', help='User or the service principle to run the alert job as.', default=None)
 @click.option('--source-dialect', help='Source query SQL dialect', default=None)
 @click.option('--no-sqlglot', help='Disable SQL glot based query transformations', default=False, is_flag=True)
-def queries(ctx, target_folder, query_id, tags, warehouse_id, run_as, source_dialect, no_sqlglot):
+@click.option('--create-folder', help='Create a dedicated folder.', default=False, is_flag=True)
+def queries(ctx, target_folder, query_id, tags, warehouse_id, run_as, source_dialect, no_sqlglot, create_folder):
     check_required_options(ctx)
     from redash import RedashClient
     from dbsql import DBXClient
@@ -114,17 +115,18 @@ def queries(ctx, target_folder, query_id, tags, warehouse_id, run_as, source_dia
             dbx_id = dbx.create_query_ex(
                 query,
                 target_folder,
+                should_create_folder=create_folder
             )
-            click.echo(f"Created query {dbx_id}")
-            if query.schedule and warehouse_id:
-                job_id = dbx.create_query_schedule(
-                    dbx_id,
-                    query.schedule,
-                    warehouse_id,
-                    run_as=run_as
-                )
-                if job_id:
-                    click.echo(f"Create scheduled job for {dbx_id} with id {job_id}")
+            # click.echo(f"Created query {dbx_id}")
+            # if query.schedule and warehouse_id:
+            #     job_id = dbx.create_query_schedule(
+            #         dbx_id,
+            #         query.schedule,
+            #         warehouse_id,
+            #         run_as=run_as
+            #     )
+            #     if job_id:
+            #         click.echo(f"Create scheduled job for {dbx_id} with id {job_id}")
         except Exception as e:
             traceback.print_tb(e.__traceback__)
             click.echo(e)
