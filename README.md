@@ -19,7 +19,7 @@ A tool to migrate Redash dashboards/queries to Databricks SQL
 This application is a python package and can be installed using pip.
 
 ```bash
-python venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
