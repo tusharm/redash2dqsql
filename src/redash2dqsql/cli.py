@@ -4,10 +4,6 @@ import traceback
 
 import click
 
-from dbsql import DBXClient
-from redash import Query
-from hlog import LOGGER
-
 
 @click.group
 @click.version_option(version='1.0.0')
@@ -169,5 +165,9 @@ def dashboards(ctx, target_folder, dashboard_id, tags, warehouse_id, run_as, sou
             raise click.Abort(e)
 
 
-if __name__ == '__main__':
+def main():
     cli(obj={})
+
+
+if __name__ == '__main__':
+    main()
