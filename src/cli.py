@@ -7,6 +7,9 @@ import click
 from redash import Query
 
 
+from hlog import LOGGER
+
+
 @click.group
 @click.version_option(version='1.0.0')
 @click.option('--redash-url', help='Redash URL', envvar='REDASH_URL')
@@ -102,9 +105,9 @@ def queries(ctx, target_folder, query_id, tags, warehouse_id, run_as, source_dia
     from transform import transform_query
 
     redash = RedashClient(ctx.obj['redash_url'], ctx.obj['redash_api_key'])
-    dbx = DBXClient(ctx.obj['databricks_host'], ctx.obj['databricks_token'])
+    dbx = DBXClient(ctx.obj['databricks_host'], ctx.obj['databricks_token'], warehouse_id=warehouse_id)
 
-    queries_list = redash.queries(tags=tags, query_id=query_id)
+    queries_list = redash.queries(tags=list(tags), query_id=query_id)
     for query in queries_list:
         if not no_sqlglot:
             if source_dialect:
@@ -117,16 +120,6 @@ def queries(ctx, target_folder, query_id, tags, warehouse_id, run_as, source_dia
                 target_folder,
                 should_create_folder=create_folder
             )
-            # click.echo(f"Created query {dbx_id}")
-            # if query.schedule and warehouse_id:
-            #     job_id = dbx.create_query_schedule(
-            #         dbx_id,
-            #         query.schedule,
-            #         warehouse_id,
-            #         run_as=run_as
-            #     )
-            #     if job_id:
-            #         click.echo(f"Create scheduled job for {dbx_id} with id {job_id}")
         except Exception as e:
             traceback.print_tb(e.__traceback__)
             click.echo(e)

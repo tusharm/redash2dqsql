@@ -28,7 +28,7 @@ from redash import Query, Alert, Dashboard
 
 
 class DBXClient:
-    def __init__(self, url, token):
+    def __init__(self, url, token, warehouse_id=None):
         self.client = WorkspaceClient(host=url, token=token)
 
         self.dashboard_api = DashboardsAPI(self.client)
@@ -36,8 +36,11 @@ class DBXClient:
         self.query_visualizations_api = QueryVisualizationsAPI(self.client)
         self.dashboard_widgets_api = DashboardWidgetsAPI(self.client)
 
-        warehouse = self.client.data_sources.list()[0]
-        self.warehouse_id = warehouse.id
+        if not warehouse_id:
+            warehouse = list(self.client.data_sources.list())[0]
+            self.warehouse_id = warehouse.id
+        else:
+            self.warehouse_id = warehouse_id
 
         # TODO: ideally this should be external eg a Delta table
         self.cache: dict[int, tuple[str, dict[int, str]]] = dict()
