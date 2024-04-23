@@ -5,8 +5,6 @@ import traceback
 import click
 
 from redash import Query
-
-
 from hlog import LOGGER
 
 
