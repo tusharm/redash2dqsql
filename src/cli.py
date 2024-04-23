@@ -4,6 +4,7 @@ import traceback
 
 import click
 
+from dbsql import DBXClient
 from redash import Query
 from hlog import LOGGER
 
@@ -12,8 +13,8 @@ from hlog import LOGGER
 @click.version_option(version='1.0.0')
 @click.option('--redash-url', help='Redash URL', envvar='REDASH_URL')
 @click.option('--redash-api-key', help='Redash API Key', envvar='REDASH_API_KEY')
-@click.option('--databricks-host', help='Redash API Key', envvar='DATABRICKS_HOST')
-@click.option('--databricks-token',  help='Redash API Key', envvar='DATABRICKS_TOKEN')
+@click.option('--databricks-host', help='Databricks Host', envvar='DATABRICKS_HOST')
+@click.option('--databricks-token',  help='Databricks Token', envvar='DATABRICKS_TOKEN')
 @click.pass_context
 def cli(ctx, redash_url, redash_api_key, databricks_host, databricks_token):
     ctx.ensure_object(dict)
