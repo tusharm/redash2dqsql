@@ -4,15 +4,13 @@ import traceback
 
 import click
 
-from redash import Query
-
 
 @click.group
 @click.version_option(version='1.0.0')
 @click.option('--redash-url', help='Redash URL', envvar='REDASH_URL')
 @click.option('--redash-api-key', help='Redash API Key', envvar='REDASH_API_KEY')
-@click.option('--databricks-host', help='Redash API Key', envvar='DATABRICKS_HOST')
-@click.option('--databricks-token',  help='Redash API Key', envvar='DATABRICKS_TOKEN')
+@click.option('--databricks-host', help='Databricks Host', envvar='DATABRICKS_HOST')
+@click.option('--databricks-token',  help='Databricks Token', envvar='DATABRICKS_TOKEN')
 @click.pass_context
 def cli(ctx, redash_url, redash_api_key, databricks_host, databricks_token):
     ctx.ensure_object(dict)
@@ -94,16 +92,17 @@ def alerts(ctx, target_folder, alert_id, tags, destination_id, warehouse_id, run
 @click.option('--run-as', help='User or the service principle to run the alert job as.', default=None)
 @click.option('--source-dialect', help='Source query SQL dialect', default=None)
 @click.option('--no-sqlglot', help='Disable SQL glot based query transformations', default=False, is_flag=True)
-def queries(ctx, target_folder, query_id, tags, warehouse_id, run_as, source_dialect, no_sqlglot):
+@click.option('--create-folder', help='Create a dedicated folder.', default=False, is_flag=True)
+def queries(ctx, target_folder, query_id, tags, warehouse_id, run_as, source_dialect, no_sqlglot, create_folder):
     check_required_options(ctx)
     from redash import RedashClient
     from dbsql import DBXClient
     from transform import transform_query
 
     redash = RedashClient(ctx.obj['redash_url'], ctx.obj['redash_api_key'])
-    dbx = DBXClient(ctx.obj['databricks_host'], ctx.obj['databricks_token'])
+    dbx = DBXClient(ctx.obj['databricks_host'], ctx.obj['databricks_token'], warehouse_id=warehouse_id)
 
-    queries_list = redash.queries(tags=tags, query_id=query_id)
+    queries_list = redash.queries(tags=list(tags), query_id=query_id)
     for query in queries_list:
         if not no_sqlglot:
             if source_dialect:
@@ -114,17 +113,8 @@ def queries(ctx, target_folder, query_id, tags, warehouse_id, run_as, source_dia
             dbx_id = dbx.create_query_ex(
                 query,
                 target_folder,
+                should_create_folder=create_folder
             )
-            click.echo(f"Created query {dbx_id}")
-            if query.schedule and warehouse_id:
-                job_id = dbx.create_query_schedule(
-                    dbx_id,
-                    query.schedule,
-                    warehouse_id,
-                    run_as=run_as
-                )
-                if job_id:
-                    click.echo(f"Create scheduled job for {dbx_id} with id {job_id}")
         except Exception as e:
             traceback.print_tb(e.__traceback__)
             click.echo(e)
@@ -175,5 +165,9 @@ def dashboards(ctx, target_folder, dashboard_id, tags, warehouse_id, run_as, sou
             raise click.Abort(e)
 
 
-if __name__ == '__main__':
+def main():
     cli(obj={})
+
+
+if __name__ == '__main__':
+    main()

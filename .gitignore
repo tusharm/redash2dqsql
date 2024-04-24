@@ -1,5 +1,13 @@
 .idea/
 venv/
+.venv/
 __pycache__/
 .env
 identified_tables.txt
+*.log
+build
+dist
+*.egg-info
+
+# we have a few shell scripts in the project to run the app
+*.sh

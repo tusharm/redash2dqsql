@@ -4,6 +4,8 @@ import sqlglot.errors
 from sqlglot import transpile, parse_one, exp
 
 from redash import Query
+from hlog import LOGGER
+
 
 TARGET_DIALECT = 'databricks'
 
@@ -63,7 +65,7 @@ def org_specific_post_transformations(query: Query, from_dialect='presto'):
     return query
 
 
-def transform_query(query: Query, from_dialect='presto'):
+def transform_query(query: Query, from_dialect=None):
     """
     Transforms the query from the given dialect to Databricks dialect.
     Also, applies post-processing steps on the transformed results:
@@ -71,15 +73,25 @@ def transform_query(query: Query, from_dialect='presto'):
         2. fixes query params, messed up by sqlglot
     """
     for q in query.depends_on:
-        transform_query(q)
+        transform_query(q, from_dialect)
+
+    if from_dialect is None:
+        from_dialect = query.source.dialect
+    if from_dialect is None:
+        from_dialect = 'presto'
 
     org_specific_pre_transformations(query, from_dialect=from_dialect)
 
-    transpiled = transpile(query.query_string.strip(), read=from_dialect, write=TARGET_DIALECT, pretty=True,
-                           error_level=sqlglot.errors.ErrorLevel.IGNORE)
+    try:
 
-    # we will only have one query
-    result = transpiled[0]
+        transpiled = transpile(query.query_string.strip(), read=from_dialect, write=TARGET_DIALECT, pretty=True,
+                               error_level=sqlglot.errors.ErrorLevel.IGNORE)
+
+        # we will only have one query
+        result = transpiled[0]
+    except sqlglot.errors.SqlglotError as e:
+        LOGGER.error(f"Error transpiling query: {query.name}")
+        result = query.query_string
 
     # result = qualify_tables_with_catalog(result, dialect=TARGET_DIALECT, catalog='hive_metastore')
     result = fix_query_params(result, query.params)
