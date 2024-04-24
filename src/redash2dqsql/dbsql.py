@@ -25,6 +25,7 @@ from databricks.sdk.service.sql import (
 from databricks.sdk.service.workspace import ObjectType
 
 from redash import Query, Alert, Dashboard
+from redash2dqsql.hlog import LOGGER
 
 
 class DBXClient:
@@ -570,5 +571,7 @@ class DBXClient:
                 target_folder = f"{target_folder}/{query_slug}"
                 self.create_directory(target_folder)
             target_folder = f"folders/{self.get_path_object_id(target_folder)}"
+
+        LOGGER.info(f"Creating databricks SQL query: `{query.name}` based on {query.source.dialect} query {query.id} in folder `{target_folder}`.")
 
         return self.create_query(query, target_folder)
